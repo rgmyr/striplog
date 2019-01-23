@@ -1369,7 +1369,19 @@ class Striplog(object):
             if ladder:
                 if width_field is not None:
                     w = iv.data.get(width_field, 1)
-                    w = default_width * w/self.max_field(width_field)
+
+                    # adding array option here
+                    if type(w) is np.ndarray and w.ndim == w.shape[1] == 2:
+                        # sort by first column
+                        w = w[w[:,0].argsort()]
+                        # HARD CODE MAX WIDTH FOR NOW -- CHANGE LATER!
+                        w[:,1] = default_width * w[:,-1]/3.0
+                        multi_width = True
+
+                    else:
+                        w = default_width * w/self.max_field(width_field)
+                        multi_width = False
+
                     default_c = 'gray'
                 elif legend is not None:
                     w = d.width or default_width
@@ -1382,12 +1394,54 @@ class Striplog(object):
 
             # Allow override of lw
             this_patch_kwargs = kwargs.copy()
+            print(this_patch_kwargs)
             lw = this_patch_kwargs.pop('lw', 0)
             ec = this_patch_kwargs.pop('ec', 'k')
-            fc = this_patch_kwargs.pop('fc', None) or default_c or d.colour
 
-            if colour is None:
-                rect = mpl.patches.Rectangle(origin,
+            # changed precedence here -- d.colour should override default_c
+            fc = this_patch_kwargs.pop('fc', None) or d.colour or default_c
+            print(d.colour, fc)
+
+            if multi_width:
+                # add 'box' coordinates
+                upper = np.array([[0.0,     iv.top.z],  [w[0,1], iv.top.z]])
+                lower = np.array([[w[-1,1], iv.base.z], [0.0,    iv.base.z]])
+
+                # swap depth/width columns so that y=depth=y, x=width
+                w[:, [0,1]] = w[:, [1,0]]
+
+                poly_coords = np.concatenate([upper, w, lower])
+
+                if colour is None:
+                    poly = mpl.patches.Polygon(poly_coords,
+                                              closed=True,
+                                              fc=fc,
+                                              lw=lw,
+                                              hatch=d.hatch,
+                                              ec=ec,  # edgecolour for hatching
+                                              **this_patch_kwargs)
+                    # for some reason, have to set properties after __init__
+                    # nvm, even this doesn't work
+                    poly.set_fc(fc); print(poly.get_fc(), fc)
+                    poly.set_ec(ec)
+                    poly.set_lw(lw)
+                    poly.set_hatch(d.hatch)
+
+                    ax.add_patch(poly)
+                else:
+                    rect = mpl.patches.Polygon(poly_coords,
+                                              closed=True,
+                                              lw=lw,
+                                              ec=ec,  # edgecolour for hatching
+                                              **this_patch_kwargs)
+                    poly.set_ec(ec)
+                    poly.set_lw(lw)
+
+                    patches.append(poly)
+
+            else:
+                if colour is None:
+                    rect = mpl.patches.Rectangle(origin,
                                              w,
                                              thick,
                                              fc=fc,
@@ -1395,15 +1449,17 @@ class Striplog(object):
                                              hatch=d.hatch,
                                              ec=ec,  # edgecolour for hatching
                                              **this_patch_kwargs)
-                ax.add_patch(rect)
-            else:
-                rect = mpl.patches.Rectangle(origin,
+                    ax.add_patch(rect)
+                else:
+                    rect = mpl.patches.Rectangle(origin,
                                              w,
                                              thick,
                                              lw=lw,
                                              ec=ec,  # edgecolour for hatching
                                              **this_patch_kwargs)
-                patches.append(rect)
+                    patches.append(rect)
+
+
 
         if colour is not None:
             cmap = cmap or 'viridis'
@@ -1547,7 +1603,7 @@ class Striplog(object):
         if title is not None:
             ax.set_title(title)
 
-        ax.patch.set_alpha(0)
+        #ax.patch.set_alpha(0)
 
         if return_ax:
             return ax
@@ -2066,4 +2122,3 @@ class Striplog(object):
             this_tests = []
 
         return {test.__name__: test(self) for test in this_tests}
-
