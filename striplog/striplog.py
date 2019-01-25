@@ -1325,7 +1325,16 @@ class Striplog(object):
         return ax
 
     def max_field(self, field):
-        return max(filter(None, [iv.data.get(field) for iv in self]))
+        field_data = []
+        for iv in self:
+            iv_data = iv.data.get(field)
+            if type(iv_data) is np.ndarray:
+                iv_data = iv_data.tolist() if iv_data.ndim == 1 else iv_data[:,1].tolist()
+                field_data.extend(iv_data)
+            else:
+                field_data.append(iv_data)
+
+        return max(filter(None, field_data))
 
     def plot_axis(self,
                   ax,
@@ -1365,24 +1374,23 @@ class Striplog(object):
             origin = (0, iv.top.z)
             d = legend.get_decor(iv.primary, match_only=match_only)
             thick = iv.base.z - iv.top.z
+            multi_width = False
 
             if ladder:
                 if width_field is not None:
                     w = iv.data.get(width_field, 1)
 
-                    # adding array option here
                     if type(w) is np.ndarray and w.ndim == w.shape[1] == 2:
-                        # sort by first column
-                        w = w[w[:,0].argsort()]
+                        w = w[w[:,0].argsort()]     # sort by first column
                         # HARD CODE MAX WIDTH FOR NOW -- CHANGE LATER!
                         w[:,1] = default_width * w[:,-1]/3.0
                         multi_width = True
 
                     else:
                         w = default_width * w/self.max_field(width_field)
-                        multi_width = False
 
                     default_c = 'gray'
+
                 elif legend is not None:
                     w = d.width or default_width
                     try:
@@ -1394,20 +1402,18 @@ class Striplog(object):
 
             # Allow override of lw
             this_patch_kwargs = kwargs.copy()
-            print(this_patch_kwargs)
             lw = this_patch_kwargs.pop('lw', 0)
             ec = this_patch_kwargs.pop('ec', 'k')
 
-            # changed precedence here -- d.colour should override default_c
+            # changed precedence here -- d.colour should override default_c ??
             fc = this_patch_kwargs.pop('fc', None) or d.colour or default_c
-            print(d.colour, fc)
 
             if multi_width:
                 # add 'box' coordinates
                 upper = np.array([[0.0,     iv.top.z],  [w[0,1], iv.top.z]])
                 lower = np.array([[w[-1,1], iv.base.z], [0.0,    iv.base.z]])
 
-                # swap depth/width columns so that y=depth=y, x=width
+                # swap depth/width columns so that y=depth, x=width
                 w[:, [0,1]] = w[:, [1,0]]
 
                 poly_coords = np.concatenate([upper, w, lower])
@@ -1420,23 +1426,14 @@ class Striplog(object):
                                               hatch=d.hatch,
                                               ec=ec,  # edgecolour for hatching
                                               **this_patch_kwargs)
-                    # for some reason, have to set properties after __init__
-                    # nvm, even this doesn't work
-                    poly.set_fc(fc); print(poly.get_fc(), fc)
-                    poly.set_ec(ec)
-                    poly.set_lw(lw)
-                    poly.set_hatch(d.hatch)
-
                     ax.add_patch(poly)
+
                 else:
                     rect = mpl.patches.Polygon(poly_coords,
                                               closed=True,
                                               lw=lw,
                                               ec=ec,  # edgecolour for hatching
                                               **this_patch_kwargs)
-                    poly.set_ec(ec)
-                    poly.set_lw(lw)
-
                     patches.append(poly)
 
             else:
