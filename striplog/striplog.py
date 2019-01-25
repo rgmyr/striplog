@@ -1325,6 +1325,10 @@ class Striplog(object):
         return ax
 
     def max_field(self, field):
+        """
+        Maximum value of `field` in intervals.
+        Extended to support mix of single numeric and np.ndarray values.
+        """
         field_data = []
         for iv in self:
             iv_data = iv.data.get(field)
@@ -1381,9 +1385,8 @@ class Striplog(object):
                     w = iv.data.get(width_field, 1)
 
                     if type(w) is np.ndarray and w.ndim == w.shape[1] == 2:
-                        w = w[w[:,0].argsort()]     # sort by first column
-                        # HARD CODE MAX WIDTH FOR NOW -- CHANGE LATER!
-                        w[:,1] = default_width * w[:,-1]/3.0
+                        w = w[w[:,0].argsort()]
+                        w[:,1] = default_width * w[:,1]/self.max_field(width_field)
                         multi_width = True
 
                     else:
@@ -1413,10 +1416,8 @@ class Striplog(object):
                 upper = np.array([[0.0,     iv.top.z],  [w[0,1], iv.top.z]])
                 lower = np.array([[w[-1,1], iv.base.z], [0.0,    iv.base.z]])
 
-                # swap depth/width columns so that y=depth, x=width
-                w[:, [0,1]] = w[:, [1,0]]
-
-                poly_coords = np.concatenate([upper, w, lower])
+                # swap depth/width columns of `w` so that y=depth, x=width
+                poly_coords = np.concatenate([upper, w[:,[1,0]], lower])
 
                 if colour is None:
                     poly = mpl.patches.Polygon(poly_coords,
