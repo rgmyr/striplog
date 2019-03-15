@@ -634,3 +634,40 @@ class Interval(object):
             components.append(Component.from_text(part, lexicon))
 
         return components
+
+"""
+
+    def max_field(self, field):
+"""
+#Return the maximum value of `field` in interval data.
+#Added to allow types other than single numeric values (iterables, arrays, dicts).
+"""
+        field_data = self.data.get(field)
+
+        if not field_data or isinstance(field_data, numbers.Number):
+            return field_data
+
+        if isinstance(field_data, dict):
+
+
+            return max(field_data.values())
+
+        elif isinstance(field_data, np.):
+            return
+
+
+    def _as_rectangle(self):
+        pass
+
+    def _as_polygon(self):
+        pass
+
+    def _as_polypath(self):
+        pass
+
+    def as_patch(self, width_field, **kwargs):
+"""
+#Return an mpl.patches.Patch instance representing the interval.
+"""
+        pass
+"""

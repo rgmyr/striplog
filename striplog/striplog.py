@@ -1391,6 +1391,7 @@ class Striplog(object):
 
                     else:
                         w = default_width * w/self.max_field(width_field)
+                        print(f'w: {iv.data.get(width_field)} --> {w}')
 
                     default_c = 'gray'
 
